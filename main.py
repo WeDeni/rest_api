@@ -2,10 +2,37 @@ from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from uuid import uuid4
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Mapped, DeclarativeBase, mapped_column
+from contextlib import asynccontextmanager
+
+DATABASE_URL = 'postgresql+psycopg://postgres:admin@127.0.0.1:5432/postgres'
+engine = create_engine(DATABASE_URL)  # объект, который управляет подключениями к базе данных
+Sessionlocal = sessionmaker(bind=engine)  # cоздаёт фабрику, из которой можно получать сессии для работы с базой
 
 
+class Base(DeclarativeBase):  # базовый класс моделей SQLAlchemy, от которого будут наследоваться остальные модели таблиц
+    id: Mapped[str] = mapped_column(primary_key=True, default=lambda: str(uuid4()))
 
-app = FastAPI()
+
+class TaskORM(Base):
+    __tablename__ = 'tasks'
+
+    title: Mapped[str]
+    completed: Mapped[bool] = mapped_column(default=False)
+
+
+@asynccontextmanager  # Декоратор, который превращает асинхронную функцию с yield в асинхронный контекстный менеджер.
+async def lifespan(_: FastAPI):
+    print('- - - - - З А П У С К   Б Э К Э Н Д А - - - - -')
+    print('Создание таблиц...')
+    Base.metadata.create_all(bind=engine)
+    print('Таблицы созданы!')
+    yield
+    print('- - - - - О С Т А Н О В К А   Б Э К Э Н Д А - - - - -')
+
+app = FastAPI(lifespan=lifespan)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -69,11 +96,6 @@ def delete_task(task_id):
         if task.id == task_id:
             tasks.remove(task)
         return
-
-
-# # #
-# # #
-# # #
 
 
 @app.post('/categories', status_code=status.HTTP_201_CREATED)
