@@ -1,13 +1,13 @@
-from fastapi import FastAPI, status
+from fastapi import FastAPI, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from uuid import uuid4
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Mapped, DeclarativeBase, mapped_column
 from contextlib import asynccontextmanager
 
 DATABASE_URL = 'postgresql+psycopg://postgres:admin@127.0.0.1:5432/postgres'
-engine = create_engine(DATABASE_URL)  # объект, который управляет подключениями к базе данных
+engine = create_engine(DATABASE_URL, echo=True)  # объект, который управляет подключениями к базе данных
 Sessionlocal = sessionmaker(bind=engine)  # cоздаёт фабрику, из которой можно получать сессии для работы с базой
 
 
@@ -24,12 +24,9 @@ class TaskORM(Base):
 
 @asynccontextmanager  # Декоратор, который превращает асинхронную функцию с yield в асинхронный контекстный менеджер.
 async def lifespan(_: FastAPI):
-    print('- - - - - З А П У С К   Б Э К Э Н Д А - - - - -')
-    print('Создание таблиц...')
+    print("DATABASE:", engine.url.render_as_string(hide_password=True))
     Base.metadata.create_all(bind=engine)
-    print('Таблицы созданы!')
     yield
-    print('- - - - - О С Т А Н О В К А   Б Э К Э Н Д А - - - - -')
 
 app = FastAPI(lifespan=lifespan)
 
@@ -66,17 +63,25 @@ class CategoryUpdate (BaseModel):
 tasks: list[TaskSchema] = []
 categories: list[Category] = []
 
+def get_db():
+    db = Sessionlocal()
+
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@app.get('/tasks')
+def read_tasks(dp: Session = Depends(get_db)) -> list[TaskSchema]:
+    return tasks
+
 
 @app.post('/tasks', status_code=status.HTTP_201_CREATED)
 def create_task(payload: TaskCreateSchema) -> TaskSchema:
     new_task = TaskSchema(id=str(uuid4()), title=payload.title, completed=False)
     tasks.append(new_task)
     return new_task
-
-
-@app.get('/tasks')
-def read_tasks():
-    return tasks
 
 
 @app.patch('/tasks/{task_id}')
