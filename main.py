@@ -1,10 +1,13 @@
+import select
+
 from fastapi import FastAPI, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from uuid import uuid4
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Mapped, DeclarativeBase, mapped_column
+from sqlalchemy.orm import Mapped, DeclarativeBase, Session, mapped_column, sessionmaker
 from contextlib import asynccontextmanager
+
 
 DATABASE_URL = 'postgresql+psycopg://postgres:admin@127.0.0.1:5432/postgres'
 engine = create_engine(DATABASE_URL, echo=True)  # объект, который управляет подключениями к базе данных
@@ -72,8 +75,12 @@ def get_db():
         db.close()
 
 
+def task_to_model(task_orm: TaskORM) -> TaskSchema:
+    return TaskSchema(id=task_orm.id, title=task_orm.title, completed=task_orm.completed)
+
 @app.get('/tasks')
 def read_tasks(dp: Session = Depends(get_db)) -> list[TaskSchema]:
+    db.scalars(select(TaskORM)).all()
     return tasks
 
 
