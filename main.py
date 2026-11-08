@@ -12,24 +12,31 @@ engine = create_engine(DATABASE_URL, echo=True)  # объект, который 
 Sessionlocal = sessionmaker(bind=engine)  # cоздаёт фабрику, из которой можно получать сессии для работы с базой
 
 
-class Base(DeclarativeBase):  # базовый класс моделей SQLAlchemy, от которого будут наследоваться остальные модели таблиц
+class Base(DeclarativeBase):
+    """Базовый класс для всех моделей таблиц БД"""
     id: Mapped[str] = mapped_column(primary_key=True, default=lambda: str(uuid4()))
 
 
 class TaskORM(Base):
-    __tablename__ = 'tasks'
-
+    """Модель для таблицы задачи в Базе Данных"""
+    __tablename__ = "tasks"
     title: Mapped[str]
-    completed: Mapped[bool] = mapped_column(default=False)
+    completed: Mapped[bool] = mapped_column(default=False) # по умолчанию False
 
-
-@asynccontextmanager  # Декоратор, который превращает асинхронную функцию с yield в асинхронный контекстный менеджер.
+@asynccontextmanager
 async def lifespan(_: FastAPI):
-    print("DATABASE:", engine.url.render_as_string(hide_password=True))
     Base.metadata.create_all(bind=engine)
     yield
 
 app = FastAPI(lifespan=lifespan)
+
+def get_db():
+    """Функция для создания сессий с БД"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 app.add_middleware(
