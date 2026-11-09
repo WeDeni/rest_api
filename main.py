@@ -1,4 +1,4 @@
-from fastapi import FastAPI, status, Depends
+from fastapi import FastAPI, status, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from uuid import uuid4
@@ -13,31 +13,28 @@ Sessionlocal = sessionmaker(bind=engine)  # cоздаёт фабрику, из �
 
 
 class Base(DeclarativeBase):
-    """Базовый класс для всех моделей таблиц БД"""
+    '''Базовый класс для всех моделей таблиц БД'''
     id: Mapped[str] = mapped_column(primary_key=True, default=lambda: str(uuid4()))
 
-
 class TaskORM(Base):
-    """Модель для таблицы задачи в Базе Данных"""
-    __tablename__ = "tasks"
+    '''Модель для таблицы задачи в Базе Данных'''
+    __tablename__ = 'tasks'
     title: Mapped[str]
     completed: Mapped[bool] = mapped_column(default=False) # по умолчанию False
+    
+class CategoryORM(Base):
+    '''Модель для таблицы категории в Базе Данных'''
+    __tablename__ = 'categories'
+    name: Mapped[str]
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
     yield
 
+
 app = FastAPI(lifespan=lifespan)
-
-def get_db():
-    """Функция для создания сессий с БД"""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -65,11 +62,7 @@ class CategoryCreate(BaseModel):
     name: str
 
 class CategoryUpdate (BaseModel):
-    name: str
-
-
-tasks: list[TaskSchema] = []
-categories: list[Category] = []
+    name: str | None = None
 
 def get_db():
     db = Sessionlocal()
@@ -80,70 +73,95 @@ def get_db():
         db.close()
 
 
-def task_orm_to_model(task_orm: TaskORM) -> TaskSchema:
-    return TaskSchema(id=task_orm.id, title=task_orm.title, completed=task_orm.completed)
+def task_to_model(task: TaskORM) -> TaskSchema:
+    '''Конвертация объекта ORM в Pydantic'''
+    return TaskSchema(id=task.id, title=task.title, completed=task.completed)
+
+
+def category_to_model(category: CategoryORM) -> Category:
+    '''Конвертация объекта ORM в Pydantic'''
+    return Category(id=category.id, name=category.name)
+
 
 @app.get('/tasks')
-def read_tasks(dp: Session = Depends(get_db)) -> list[TaskSchema]:
-    tasks_grom_db = db.scalars(select(TaskORM)).all()
-    return [task_orm_to_model(task) for task in tasks_grom_db]
+def read_tasks(db: Session = Depends(get_db)) -> list[TaskSchema]:
+    tasks_from_db = db.scalars(select(TaskORM)).all()
+    return [task_to_model(task) for task in tasks_from_db]
 
 
 @app.post('/tasks', status_code=status.HTTP_201_CREATED)
-def create_task(payload: TaskCreateSchema) -> TaskSchema:
-    new_task = TaskSchema(id=str(uuid4()), title=payload.title, completed=False)
-    tasks.append(new_task)
-    return new_task
+def create_task(payload: TaskCreateSchema, db: Session = Depends(get_db)) -> TaskSchema:
+    new_task = TaskORM(id=str(uuid4()), title=payload.title, completed=False)
+    db.add(new_task)
+    db.commit()
+    return task_to_model(new_task)
 
 
-@app.patch('/tasks/{task_id}')
-def update_task(task_id: str, payload: TaskUpdateSchema):
-    for task in tasks:
-        if task.id == task_id:
-            if payload.title:
-                task.title = payload.title
-            if payload.completed is not None:
-                task.completed = payload.completed
-        return task
+@app.patch('/tasks/{task_id}', response_model=TaskSchema)
+def update_task(task_id: str, payload: TaskUpdateSchema, db: Session = Depends(get_db)) -> TaskSchema:
+    '''
+    Обновить существующую задачу
+    task_id получаем из url
+    payload получаем из тела запроса
+    '''
+    task = db.get(TaskORM, task_id)
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Задача не найдена')
+
+    task.title = payload.title if payload.title is not None else task.title
+    task.completed = payload.completed if payload.completed is not None else task.completed
+    db.commit()
+    return task_to_model(task)
 
 
 @app.delete('/tasks/{task_id}', status_code=status.HTTP_204_NO_CONTENT)
-def delete_task(task_id):
-    for task in tasks:
-        if task.id == task_id:
-            tasks.remove(task)
-        return
+def delete_task(task_id: str, db: Session = Depends(get_db)) -> None:
+    '''Удалить задачу'''
+    task = db.get(TaskORM, task_id)
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Задача не найдена')
 
-
-@app.post('/categories', status_code=status.HTTP_201_CREATED)
-def create_category(payload: CategoryCreate) -> Category:
-    new_category = Category(id=str(uuid4()), name=payload.name)
-    categories.append(new_category)
-    return new_category
+    db.delete(task)
+    db.commit()
 
 
 @app.get('/categories')
-def read_categories():
-    return categories
+def read_categories(db: Session = Depends(get_db)) -> list[Category]:
+    categories_from_db = db.scalars(select(CategoryORM)).all()
+    return [category_to_model(category) for category in categories_from_db]
 
 
-@app.patch('/categories/{category_id}')
-def update_category(category_id: str, payload: CategoryUpdate):
-    for category in categories:
-        if category.id == category_id:
-            if payload.name:
-                category.name = payload.name
-            return category
+@app.post('/categories', status_code=status.HTTP_201_CREATED)
+def create_category(payload: CategoryCreate, db: Session = Depends(get_db)) -> Category:
+    new_category = CategoryORM(id=str(uuid4()), name=payload.name)
+    db.add(new_category)
+    db.commit()
+    return category_to_model(new_category)
 
 
-@app.delete('/categories/{category_id}')
-def delete_category(category_id):
-    found = False
-    for category in categories:
-        if category.id == category_id:
-            categories.remove(category)
-            found = True
-    if found:
-        return status.HTTP_204_NO_CONTENT
-    else:
-        return status.HTTP_404_NOT_FOUND
+@app.patch('/categories/{category_id}', response_model=Category)
+def update_category(category_id: str, payload: CategoryUpdate, db: Session = Depends(get_db)) -> Category:
+    '''
+    Обновить существующую категорию
+    category_id получаем из url
+    payload получаем из тела запроса
+    '''
+    category = db.get(CategoryORM, category_id)
+    if category is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Категория не найдена')
+
+    category.name = payload.name if payload.name is not None else category.name
+    db.commit()
+    return category_to_model(category)
+
+
+@app.delete('/categories/{category_id}', status_code=status.HTTP_204_NO_CONTENT)
+def delete_category(category_id: str, db: Session = Depends(get_db)) -> None:
+    '''Удалить категорию'''
+    category = db.get(CategoryORM, category_id)
+    if category is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Категория не найдена')
+
+    db.delete(category)
+    db.commit()
+    
