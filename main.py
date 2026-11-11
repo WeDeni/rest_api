@@ -7,7 +7,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sess
 from contextlib import asynccontextmanager
 
 
-DATABASE_URL = 'postgresql+psycopg://postgres:admin@127.0.0.1:5432/postgres'
+DATABASE_URL: str = 'postgresql+psycopg://postgres:admin@127.0.0.1:5432/postgres'
 engine = create_engine(DATABASE_URL, echo=True)  # объект, который управляет подключениями к базе данных
 Sessionlocal = sessionmaker(bind=engine)  # cоздаёт фабрику, из которой можно получать сессии для работы с базой
 
