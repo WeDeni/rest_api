@@ -18,5 +18,5 @@ class TaskRepository:
         self.db.add(new_task)
         return new_task
 
-    def delete(self, TaskORM) -> None:
-        self.db.delete(TaskORM)
+    def delete(self, task:TaskORM) -> None:
+        self.db.delete(task)

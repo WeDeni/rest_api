@@ -17,7 +17,7 @@ def create_task(
     payload: TaskCreateSchema,
     task_service: TaskService = Depends(get_task_service)
 ) -> TaskSchema:
-    return task_service.create_tasks(task_create=payload)
+    return task_service.create_task(task_create=payload)
 
 
 @router.patch('/{task_id}', response_model=TaskSchema)
@@ -27,7 +27,7 @@ def update_task(
     task_service: TaskService = Depends(get_task_service)
 ) -> TaskSchema:
     try:
-        return task_service.update_tasks(task_id=task_id, task_update=payload)
+        return task_service.update_task(task_id=task_id, task_update=payload)
     except TaskNotFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
@@ -35,6 +35,6 @@ def update_task(
 @router.delete('/{task_id}', status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(task_id: str, task_service: TaskService = Depends(get_task_service)) -> None:
     try:
-        return task_service.delete_tasks(task_id=task_id )
+        return task_service.delete_task(task_id=task_id )
     except TaskNotFound:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Задача не найдена')

@@ -12,7 +12,7 @@ from app.models.base import Base
 from app.db.session import engine
 from app.api.routers.task import router as task_router
 
-
+#
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
