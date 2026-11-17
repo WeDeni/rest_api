@@ -36,3 +36,7 @@ class TaskService:
             raise TaskNotFound(f'Задача с id {task_id} не найдена')
         self.task_repository.delete(task_for_delete)
         self.db.commit()
+
+
+class CategoryService:
+    pass

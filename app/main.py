@@ -30,21 +30,6 @@ app.add_middleware(
 )
 
 '''
-class CategoryORM(Base):
-    __tablename__ = 'categories'
-    name: Mapped[str]
-
-
-class Category(BaseModel):
-    id: str
-    name: str
-
-class CategoryCreate(BaseModel):
-    name: str
-
-class CategoryUpdate (BaseModel):
-    name: str | None = None
-
 
 def category_to_model(category: CategoryORM) -> Category:
     return Category(id=category.id, name=category.name)
