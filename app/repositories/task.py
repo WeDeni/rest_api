@@ -1,6 +1,5 @@
-from sqlalchemy.orm import Session
 from sqlalchemy import select
-from app.models.task import TaskORM
+from app.models.all import TaskORM
 
 # GET, CREATE, DELETE
 class TaskRepository:

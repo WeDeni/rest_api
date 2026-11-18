@@ -1,18 +1,11 @@
-from fastapi import FastAPI, status, Depends, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from uuid import uuid4
-from sqlalchemy import select
-from sqlalchemy.orm import Mapped, Session
 from contextlib import asynccontextmanager
-
-
-
 from app.models.base import Base
 from app.db.session import engine
 from app.api.routers.task import router as task_router
 
-#
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
@@ -30,11 +23,6 @@ app.add_middleware(
 )
 
 '''
-
-def category_to_model(category: CategoryORM) -> Category:
-    return Category(id=category.id, name=category.name)
-
-
 @app.get('/categories')
 def read_categories(db: Session = Depends(get_db)) -> list[Category]:
     categories_from_db = db.scalars(select(CategoryORM)).all()

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, status, Depends, HTTPException
-from app.schemas.task import TaskSchema, TaskCreateSchema, TaskUpdateSchema
+from app.schemes.all import TaskSchema, TaskCreateSchema, TaskUpdateSchema
 from app.services.task import TaskService, TaskNotFound
 from app.api.dependencies import get_task_service
 
