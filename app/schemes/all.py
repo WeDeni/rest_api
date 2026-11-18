@@ -15,6 +15,7 @@ class TaskUpdateSchema(BaseModel):
     completed: bool | None = None
 
 class Category(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
 

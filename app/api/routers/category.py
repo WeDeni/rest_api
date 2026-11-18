@@ -4,7 +4,7 @@ from app.services.category import CategoryNotFound, CategoryService
 from app.api.dependencies import get_category_service
 
 
-router = APIRouter(prefix='/category')
+router = APIRouter(prefix='/categories')
 
 
 @router.get('')
