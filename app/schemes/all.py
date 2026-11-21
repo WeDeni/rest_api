@@ -1,5 +1,11 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StringConstraints
+from typing import Annotated
 
+
+NonBlankString = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1),
+]
 
 class TaskSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -7,20 +13,20 @@ class TaskSchema(BaseModel):
     title: str
     completed: bool
 
-class TaskCreateSchema(BaseModel):
-    title: str
-
-class TaskUpdateSchema(BaseModel):
-    title: str | None = None
-    completed: bool | None = None
-
 class Category(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
 
 class CategoryCreate(BaseModel):
-    name: str
+    name: NonBlankString
 
-class CategoryUpdate (BaseModel):
-    name: str | None = None
+class CategoryUpdate(BaseModel):
+    name: NonBlankString | None = None
+
+class TaskCreateSchema(BaseModel):
+    title: NonBlankString
+
+class TaskUpdateSchema(BaseModel):
+    title: NonBlankString | None = None
+    completed: bool | None = None
